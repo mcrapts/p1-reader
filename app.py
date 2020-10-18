@@ -1,11 +1,25 @@
+from dotenv import load_dotenv
 import asyncio
 import os
-from dotenv import load_dotenv
+import json
+import re
+from datetime import datetime
+from influxdb import InfluxDBClient
+
 
 load_dotenv()
 
 
 P1_ADDRESS = os.getenv("P1_ADDRESS")
+obis: list = json.load(open(os.path.join(os.path.dirname(__file__), "obis.json")))[
+    "obis_fields"
+]
+influxdb_client = InfluxDBClient(
+    host=os.getenv("INFLUXDB_HOST"),
+    port=443,
+    ssl=os.getenv("INFLUXDB_SSL") == "1",
+    verify_ssl=False,
+)
 
 
 def calc_crc(telegram: list[bytes]):
@@ -29,6 +43,61 @@ def calc_crc(telegram: list[bytes]):
     return hex(crc)
 
 
+def parse_hex(str):
+    try:
+        result = bytes.fromhex(str).decode()
+    except ValueError:
+        result = str
+    return result
+
+
+def send_telegram(telegram: list[bytes]):
+    def format_value(value, type):
+        # Timestamp has message of format "YYMMDDhhmmssX"
+        format_functions = {
+            "float": lambda str: float(str),
+            "int": lambda str: int(str),
+            "timestamp": lambda str: int(
+                datetime.strptime(str[:-1], "%y%m%d%H%M%S").timestamp()
+            ),
+            "string": lambda str: parse_hex(str),
+        }
+        value = format_functions[type](value.split("*")[0])
+        return value
+
+    telegram_formatted = {}
+    for line in [line.decode() for line in telegram]:
+        matches = re.findall("(^.*?(?=\\())|((?<=\\().*?(?=\\)))", line)
+        if len(matches) > 0:
+            obis_key = matches[0][0]
+            obis_item = next((item for item in obis if item["key"] == obis_key), None)
+            if obis_item is not None:
+                telegram_formatted[obis_item["name"]] = (
+                    format_value(matches[1][1], obis_item["type"])
+                    if len(matches) == 2
+                    else "|".join([
+                        str(format_value(
+                            match[1],
+                            obis_item["type"][index]
+                            if type(obis_item["type"]) == list
+                            else obis_item["type"],
+                        ))
+                        for index, match in enumerate(matches[1:])
+                    ])
+                )
+    influxdb_body = [{
+        "measurement": "p1",
+        "fields": telegram_formatted,
+        "time": int(datetime.now().timestamp()),
+    }]
+    # print(influxdb_body)
+    influxdb_client.write_points(
+        points=influxdb_body,
+        database=os.getenv("INFLUXDB_DATABASE")
+        # time_precision="u",
+    )
+
+
 async def read_p1_tcp():
     reader, _ = await asyncio.open_connection(P1_ADDRESS, 23)
     telegram = []
@@ -41,8 +110,12 @@ async def read_p1_tcp():
         if line.startswith("!"):
             crc = hex(int(line[1:], 16))
             calculated_crc = calc_crc(telegram)
-            if(crc == calculated_crc):
-                print('crc valid!!! do something')
+            if crc == calculated_crc:
+                print("crc valid!!! do something")
+                send_telegram(telegram)
+                import sys
+
+                sys.exit()
 
 
 asyncio.run(read_p1_tcp())
