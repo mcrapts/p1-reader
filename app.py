@@ -75,47 +75,59 @@ def send_telegram(telegram: list[bytes]):
                 telegram_formatted[obis_item["name"]] = (
                     format_value(matches[1][1], obis_item["type"])
                     if len(matches) == 2
-                    else "|".join([
-                        str(format_value(
-                            match[1],
-                            obis_item["type"][index]
-                            if type(obis_item["type"]) == list
-                            else obis_item["type"],
-                        ))
-                        for index, match in enumerate(matches[1:])
-                    ])
+                    else "|".join(
+                        [
+                            str(
+                                format_value(
+                                    match[1],
+                                    obis_item["type"][index]
+                                    if type(obis_item["type"]) == list
+                                    else obis_item["type"],
+                                )
+                            )
+                            for index, match in enumerate(matches[1:])
+                        ]
+                    )
                 )
-    influxdb_body = [{
-        "measurement": "p1",
-        "fields": telegram_formatted,
-        "time": int(datetime.now().timestamp()),
-    }]
-    # print(influxdb_body)
-    influxdb_client.write_points(
-        points=influxdb_body,
-        database=os.getenv("INFLUXDB_DATABASE")
-        # time_precision="u",
-    )
+    influxdb_body = [
+        {
+            "measurement": "p1",
+            "fields": telegram_formatted,
+            "time": int(datetime.now().timestamp()),
+        }
+    ]
+    try:
+        influxdb_client.write_points(
+            points=influxdb_body,
+            database=os.getenv("INFLUXDB_DATABASE"),
+            time_precision="s",
+            protocol="json"
+        )
+    except Exception as err:
+        print(f"Unable to send data to InfluxDB: {err}")
 
 
 async def read_p1_tcp():
     reader, _ = await asyncio.open_connection(P1_ADDRESS, 23)
     telegram = []
     while True:
-        data = await reader.readline()
-        line = data.decode("utf-8")
-        if line.startswith("/"):
-            telegram = []
-        telegram.append(data)
-        if line.startswith("!"):
-            crc = hex(int(line[1:], 16))
-            calculated_crc = calc_crc(telegram)
-            if crc == calculated_crc:
-                print("crc valid!!! do something")
-                send_telegram(telegram)
-                import sys
-
-                sys.exit()
+        try:
+            data = await reader.readline()
+            line = data.decode("utf-8")
+            if line.startswith("/"):
+                telegram = []
+            telegram.append(data)
+            if line.startswith("!"):
+                crc = hex(int(line[1:], 16))
+                calculated_crc = calc_crc(telegram)
+                if crc == calculated_crc:
+                    # print("crc valid!!! do something")
+                    send_telegram(telegram)
+                    # import sys
+                    # sys.exit()
+        except Exception:
+            print(f"Unable to read data from {P1_ADDRESS}")
+            await asyncio.sleep(5)
 
 
 asyncio.run(read_p1_tcp())
