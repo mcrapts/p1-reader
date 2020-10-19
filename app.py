@@ -91,7 +91,7 @@ async def send_telegram(telegram: list[bytes]):
                     )
                 )
     try:
-        mqtt_client.publish("p1", json.dumps(telegram_formatted))
+        mqtt_client.publish(os.getenv("MQTT_TOPIC"), json.dumps(telegram_formatted))
         logging.info("Telegram published on MQTT")
     except Exception as err:
         logging.error(f"Unable to send data to InfluxDB: {err}")
