@@ -49,7 +49,7 @@
         {
             "key": "0-0:96.14.0",
             "name": "tariffIndicator",
-            "type": "string",
+            "type": "int",
             "description": "Tariff indicator electricity. The tariff indicator can be used to switch tariff dependent loads e.g boilers. This is responsibility of the P1 user"
         },
         {
