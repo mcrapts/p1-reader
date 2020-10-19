@@ -3,7 +3,7 @@
         {
             "key": "1-3:0.2.8",
             "name": "versionInformation",
-            "type": "string",
+            "type": "int",
             "description": "Version information for P1 output"
         },
         {
@@ -81,7 +81,7 @@
         {
             "key": "1-0:99.97.0",
             "name": "powerFailureEventLog",
-            "type": "string",
+            "type": "unknown",
             "description": "Power failure event log"
         },
         {

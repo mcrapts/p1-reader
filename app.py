@@ -62,6 +62,7 @@ async def send_telegram(telegram: list[bytes]):
                 datetime.strptime(str[:-1], "%y%m%d%H%M%S").timestamp()
             ),
             "string": lambda str: parse_hex(str),
+            "unknown": lambda str: str
         }
         value = format_functions[type](value.split("*")[0])
         return value
@@ -123,6 +124,7 @@ async def read_p1_tcp():
                 crc = hex(int(line[1:], 16))
                 calculated_crc = calc_crc(telegram)
                 if crc == calculated_crc:
+                    logging.info("CRC verified, send Telegram")
                     await send_telegram(telegram)
                 else:
                     logging.warning("CRC check failed")
