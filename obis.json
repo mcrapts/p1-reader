@@ -227,6 +227,7 @@
             "name": "deviceValue1",
             "unit": "m³",
             "type": ["timestamp", "float"],
+            "valuePosition": 1,
             "description": "Last 5-minute value (temperature converted), gas delivered to client in m3, including decimal values and capture time"
         }
     ]

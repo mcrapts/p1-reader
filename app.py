@@ -12,7 +12,7 @@ load_dotenv()
 logging.basicConfig(
     format="%(asctime)s: [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%dT%H:%M:%S%z",
-    level=logging.DEBUG if os.getenv("LOG_LEVEL") == "DEBUG" else logging.INFO
+    level=logging.DEBUG if os.getenv("LOG_LEVEL") == "DEBUG" else logging.INFO,
 )
 
 
@@ -71,23 +71,32 @@ async def send_telegram(telegram: list[bytes]):
         matches = re.findall("(^.*?(?=\\())|((?<=\\().*?(?=\\)))", line)
         if len(matches) > 0:
             obis_key = matches[0][0]
-            obis_item = next((item for item in obis if item["key"] == obis_key), None)
+            obis_item = next(
+                (item for item in obis if item.get("key") == obis_key), None
+            )
             if obis_item is not None:
-                telegram_formatted[obis_item["name"]] = (
-                    format_value(matches[1][1], obis_item["type"])
+                telegram_formatted[obis_item.get("name")] = (
+                    format_value(matches[1][1], obis_item.get("type"))
                     if len(matches) == 2
-                    else "|".join(
-                        [
-                            str(
-                                format_value(
-                                    match[1],
-                                    obis_item["type"][index]
-                                    if type(obis_item["type"]) == list
-                                    else obis_item["type"],
+                    else (
+                        "|".join(
+                            [
+                                str(
+                                    format_value(
+                                        match[1],
+                                        obis_item.get("type")[index]
+                                        if type(obis_item.get("type")) == list
+                                        else obis_item.get("type"),
+                                    )
                                 )
-                            )
-                            for index, match in enumerate(matches[1:])
-                        ]
+                                for index, match in enumerate(matches[1:])
+                            ]
+                        )
+                        if obis_item.get("valuePosition") is None
+                        else format_value(
+                            matches[2][1],
+                            obis_item.get("type")[obis_item.get("valuePosition")],
+                        )
                     )
                 )
     try:
@@ -114,9 +123,9 @@ async def read_p1_tcp():
                 if crc == calculated_crc:
                     await send_telegram(telegram)
                 else:
-                    logging.warn('CRC check failed')
-        except Exception:
-            logging.error(f"Unable to read data from {P1_ADDRESS}")
+                    logging.warn("CRC check failed")
+        except Exception as err:
+            logging.error(f"Unable to read data from {P1_ADDRESS}: {err}")
             await asyncio.sleep(5)
 
 
