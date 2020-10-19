@@ -4,22 +4,24 @@ import os
 import json
 import re
 from datetime import datetime
-from influxdb import InfluxDBClient
+import paho.mqtt.client as mqtt
+import logging
 
 
 load_dotenv()
+logging.basicConfig(
+    format="%(asctime)s: [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S%z",
+    level=logging.DEBUG if os.getenv("LOG_LEVEL") == "DEBUG" else logging.INFO
+)
 
 
 P1_ADDRESS = os.getenv("P1_ADDRESS")
 obis: list = json.load(open(os.path.join(os.path.dirname(__file__), "obis.json")))[
     "obis_fields"
 ]
-influxdb_client = InfluxDBClient(
-    host=os.getenv("INFLUXDB_HOST"),
-    port=443,
-    ssl=os.getenv("INFLUXDB_SSL") == "1",
-    verify_ssl=False,
-)
+mqtt_client = mqtt.Client()
+mqtt_client.connect(os.getenv("MQTT_BROKER"), 1883, 60)
 
 
 def calc_crc(telegram: list[bytes]):
@@ -28,7 +30,6 @@ def calc_crc(telegram: list[bytes]):
     x = 0
     y = 0
     crc = 0
-    # print "Lengte telegram",len(telegram)
     while x < len(telegram_cut):
         crc = crc ^ telegram_cut[x]
         x = x + 1
@@ -51,7 +52,7 @@ def parse_hex(str):
     return result
 
 
-def send_telegram(telegram: list[bytes]):
+async def send_telegram(telegram: list[bytes]):
     def format_value(value, type):
         # Timestamp has message of format "YYMMDDhhmmssX"
         format_functions = {
@@ -89,22 +90,11 @@ def send_telegram(telegram: list[bytes]):
                         ]
                     )
                 )
-    influxdb_body = [
-        {
-            "measurement": "p1",
-            "fields": telegram_formatted,
-            "time": int(datetime.now().timestamp()),
-        }
-    ]
     try:
-        influxdb_client.write_points(
-            points=influxdb_body,
-            database=os.getenv("INFLUXDB_DATABASE"),
-            time_precision="s",
-            protocol="json"
-        )
+        mqtt_client.publish("p1", json.dumps(telegram_formatted))
+        logging.info("Telegram published on MQTT")
     except Exception as err:
-        print(f"Unable to send data to InfluxDB: {err}")
+        logging.error(f"Unable to send data to InfluxDB: {err}")
 
 
 async def read_p1_tcp():
@@ -113,6 +103,7 @@ async def read_p1_tcp():
     while True:
         try:
             data = await reader.readline()
+            logging.debug(data)
             line = data.decode("utf-8")
             if line.startswith("/"):
                 telegram = []
@@ -122,11 +113,11 @@ async def read_p1_tcp():
                 calculated_crc = calc_crc(telegram)
                 if crc == calculated_crc:
                     # print("crc valid!!! do something")
-                    send_telegram(telegram)
+                    await send_telegram(telegram)
                     # import sys
                     # sys.exit()
         except Exception:
-            print(f"Unable to read data from {P1_ADDRESS}")
+            logging.error(f"Unable to read data from {P1_ADDRESS}")
             await asyncio.sleep(5)
 
 

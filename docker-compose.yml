@@ -1,0 +1,9 @@
+version: "3.8"
+services:
+  p1-reader:
+    build: .
+    image: p1-reader
+    env_file:
+    - .env
+    restart: unless-stopped
+    container_name: p1-reader
