@@ -112,10 +112,9 @@ async def read_p1_tcp():
                 crc = hex(int(line[1:], 16))
                 calculated_crc = calc_crc(telegram)
                 if crc == calculated_crc:
-                    # print("crc valid!!! do something")
                     await send_telegram(telegram)
-                    # import sys
-                    # sys.exit()
+                else:
+                    logging.warn('CRC check failed')
         except Exception:
             logging.error(f"Unable to read data from {P1_ADDRESS}")
             await asyncio.sleep(5)
