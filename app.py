@@ -124,7 +124,7 @@ async def read_p1_tcp():
                 telegram = []
                 logging.debug("New telegram")
             if len(telegram) > telegram_limit:
-                reader, _ = get_reader()
+                reader, _ = await get_reader()
                 raise Exception(f"telegram extends more than {telegram_limit} lines")
             telegram.append(data)
             if line.startswith("!"):
