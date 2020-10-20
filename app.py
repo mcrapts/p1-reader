@@ -115,10 +115,11 @@ async def read_p1_tcp():
     while True:
         try:
             data = await reader.readline()
-            logging.info(data)
+            logging.debug(data)
             line = data.decode("utf-8")
             if line.startswith("/"):
                 telegram = []
+                logging.debug("New telegram")
             telegram.append(data)
             if line.startswith("!"):
                 crc = hex(int(line[1:], 16))
