@@ -112,6 +112,7 @@ async def send_telegram(telegram: list[bytes]):
 async def read_p1_tcp():
     def get_reader():
         return asyncio.open_connection(P1_ADDRESS, 23)
+
     reader, _ = await get_reader()
     telegram = []
     telegram_limit = 100
@@ -124,7 +125,6 @@ async def read_p1_tcp():
                 telegram = []
                 logging.debug("New telegram")
             if len(telegram) > telegram_limit:
-                reader, _ = await get_reader()
                 raise Exception(f"telegram extends more than {telegram_limit} lines")
             telegram.append(data)
             if line.startswith("!"):
@@ -139,6 +139,7 @@ async def read_p1_tcp():
         except Exception as err:
             logging.error(f"Unable to read data from {P1_ADDRESS}: {err}")
             await asyncio.sleep(5)
+            reader, _ = await get_reader()
 
 
 asyncio.run(read_p1_tcp())
