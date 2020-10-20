@@ -134,6 +134,7 @@ async def read_p1_tcp():
                     logging.info(f"CRC verified ({crc})")
                     await send_telegram(telegram)
                     await asyncio.sleep(5)
+                    reader, _ = await get_reader()
                 else:
                     logging.warning("CRC check failed")
         except Exception as err:
