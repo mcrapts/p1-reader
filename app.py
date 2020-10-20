@@ -124,7 +124,7 @@ async def read_p1_tcp():
                 crc = hex(int(line[1:], 16))
                 calculated_crc = calc_crc(telegram)
                 if crc == calculated_crc:
-                    logging.info("CRC verified, send Telegram")
+                    logging.info(f"CRC verified ({crc}), send Telegram")
                     await send_telegram(telegram)
                 else:
                     logging.warning("CRC check failed")
