@@ -62,7 +62,7 @@ async def send_telegram(telegram: list[bytes]):
                 datetime.strptime(str[:-1], "%y%m%d%H%M%S").timestamp()
             ),
             "string": lambda str: parse_hex(str),
-            "unknown": lambda str: str
+            "unknown": lambda str: str,
         }
         value = format_functions[type](value.split("*")[0])
         return value
@@ -121,6 +121,8 @@ async def read_p1_tcp():
                 telegram = []
                 logging.debug("New telegram")
             telegram.append(data)
+            if len(telegram) > 50:
+                raise Exception("telegram extends more than 50 lines")
             if line.startswith("!"):
                 crc = hex(int(line[1:], 16))
                 calculated_crc = calc_crc(telegram)
