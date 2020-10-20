@@ -127,7 +127,7 @@ async def read_telegram():
             if telegram is not None:
                 if len(telegram) > telegram_limit:
                     raise Exception(
-                        f"telegram extends more than {telegram_limit} lines"
+                        f"Telegram length exceeds more than {telegram_limit} lines"
                     )
                 telegram.append(data)
                 if line.startswith("!"):
