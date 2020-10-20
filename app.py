@@ -116,8 +116,12 @@ async def read_telegram():
     try:
         reader, writer = await get_reader()
         telegram = None
-        telegram_limit = 100
+        iteration_limit = 100
+        i = 0
         while True:
+            if i > iteration_limit:
+                raise Exception(f"Exceeded iteration limit ({iteration_limit})")
+            i = i + 1
             data = await reader.readline()
             logging.debug(data)
             line = data.decode("utf-8")
@@ -125,10 +129,6 @@ async def read_telegram():
                 telegram = []
                 logging.debug("New telegram")
             if telegram is not None:
-                if len(telegram) > telegram_limit:
-                    raise Exception(
-                        f"Telegram length exceeds more than {telegram_limit} lines"
-                    )
                 telegram.append(data)
                 if line.startswith("!"):
                     crc = hex(int(line[1:], 16))
