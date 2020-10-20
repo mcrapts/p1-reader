@@ -115,7 +115,7 @@ async def read_p1_tcp():
     while True:
         try:
             data = await reader.readline()
-            logging.debug(data)
+            logging.info(data)
             line = data.decode("utf-8")
             if line.startswith("/"):
                 telegram = []
