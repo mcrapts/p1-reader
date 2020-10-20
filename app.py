@@ -148,7 +148,7 @@ async def read_telegram():
 async def read_p1():
     while True:
         await read_telegram()
-        await asyncio.sleep(5)
+        await asyncio.sleep(30)
 
 
 asyncio.run(read_p1())
