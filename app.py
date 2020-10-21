@@ -110,11 +110,8 @@ async def send_telegram(telegram: list[bytes]):
 
 
 async def read_telegram():
-    def get_reader():
-        return asyncio.open_connection(P1_ADDRESS, 23)
-
     try:
-        reader, writer = await get_reader()
+        reader, writer = await asyncio.open_connection(P1_ADDRESS, 23)
         telegram = None
         iteration_limit = 100
         i = 0
