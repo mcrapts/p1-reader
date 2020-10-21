@@ -133,7 +133,7 @@ async def read_telegram():
         if telegram is not None:
             telegram.append(data)
             if data.startswith(b"!"):
-                crc = hex(int(data[1:], 16))
+                crc: str = hex(int(data[1:], 16))
                 calculated_crc: str = calc_crc(telegram)
                 if crc == calculated_crc:
                     logging.info(f"CRC verified ({crc})")
