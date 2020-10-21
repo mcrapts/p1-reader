@@ -120,14 +120,14 @@ async def read_telegram():
         i = i + 1
         data = await reader.readline()
         logging.debug(data)
-        line = data.decode("utf-8")
-        if line.startswith("/"):
+        # line = data.decode("utf-8")
+        if data.startswith(b"/"):
             telegram = []
             logging.debug("New telegram")
         if telegram is not None:
             telegram.append(data)
-            if line.startswith("!"):
-                crc = hex(int(line[1:], 16))
+            if data.startswith(b"!"):
+                crc = hex(int(data[1:], 16))
                 calculated_crc = calc_crc(telegram)
                 if crc == calculated_crc:
                     logging.info(f"CRC verified ({crc})")
@@ -143,7 +143,7 @@ async def read_p1():
     while True:
         try:
             await asyncio.gather(
-                asyncio.sleep(30), asyncio.wait_for(read_telegram(), timeout=5)
+                asyncio.sleep(2), asyncio.wait_for(read_telegram(), timeout=5)
             )
         except Exception as err:
             logging.error(f"Unable to read data from {P1_ADDRESS}: {err}")
