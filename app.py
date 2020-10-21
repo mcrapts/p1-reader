@@ -1,3 +1,4 @@
+from asyncio.streams import StreamReader, StreamWriter
 from dotenv import load_dotenv
 import asyncio
 import os
@@ -6,6 +7,7 @@ import re
 from datetime import datetime
 import paho.mqtt.client as mqtt
 import logging
+from typing import Union
 
 
 load_dotenv()
@@ -16,7 +18,7 @@ logging.basicConfig(
 )
 
 
-P1_ADDRESS = os.getenv("P1_ADDRESS")
+P1_ADDRESS: str = os.getenv("P1_ADDRESS", "")
 obis: list = json.load(open(os.path.join(os.path.dirname(__file__), "obis.json")))[
     "obis_fields"
 ]
@@ -24,7 +26,7 @@ mqtt_client = mqtt.Client()
 mqtt_client.connect(os.getenv("MQTT_BROKER"), 1883, 60)
 
 
-def calc_crc(telegram: list[bytes]):
+def calc_crc(telegram: list[bytes]) -> str:
     telegram_str = b"".join(telegram)
     telegram_cut = telegram_str[0 : telegram_str.find(b"!") + 1]
     x = 0
@@ -44,7 +46,7 @@ def calc_crc(telegram: list[bytes]):
     return hex(crc)
 
 
-def parse_hex(str):
+def parse_hex(str) -> str:
     try:
         result = bytes.fromhex(str).decode()
     except ValueError:
@@ -52,10 +54,10 @@ def parse_hex(str):
     return result
 
 
-async def send_telegram(telegram: list[bytes]):
-    def format_value(value, type):
+async def send_telegram(telegram: list[bytes]) -> None:
+    def format_value(value: str, type: str) -> Union[str, float]:
         # Timestamp has message of format "YYMMDDhhmmssX"
-        format_functions = {
+        format_functions: dict = {
             "float": lambda str: float(str),
             "int": lambda str: int(str),
             "timestamp": lambda str: int(
@@ -64,20 +66,23 @@ async def send_telegram(telegram: list[bytes]):
             "string": lambda str: parse_hex(str),
             "unknown": lambda str: str,
         }
-        value = format_functions[type](value.split("*")[0])
-        return value
+        return_value = format_functions[type](value.split("*")[0])
+        return return_value
 
-    telegram_formatted = {}
+    telegram_formatted: dict = {}
+    line: str
     for line in [line.decode() for line in telegram]:
-        matches = re.findall("(^.*?(?=\\())|((?<=\\().*?(?=\\)))", line)
+        matches: list[[]] = re.findall("(^.*?(?=\\())|((?<=\\().*?(?=\\)))", line)
         if len(matches) > 0:
-            obis_key = matches[0][0]
-            obis_item = next(
-                (item for item in obis if item.get("key") == obis_key), None
+            obis_key: str = matches[0][0]
+            obis_item: Union[dict, None] = next(
+                (item for item in obis if item.get("key", "") == obis_key), None
             )
             if obis_item is not None:
+                item_type: str = obis_item.get("type", "")
+                item_value_position: Union[int, None] = obis_item.get("valuePosition")
                 telegram_formatted[obis_item.get("name")] = (
-                    format_value(matches[1][1], obis_item.get("type"))
+                    format_value(matches[1][1], item_type)
                     if len(matches) == 2
                     else (
                         "|".join(
@@ -85,18 +90,18 @@ async def send_telegram(telegram: list[bytes]):
                                 str(
                                     format_value(
                                         match[1],
-                                        obis_item.get("type")[index]
-                                        if type(obis_item.get("type")) == list
-                                        else obis_item.get("type"),
+                                        item_type[index]
+                                        if type(item_type) == list
+                                        else item_type,
                                     )
                                 )
                                 for index, match in enumerate(matches[1:])
                             ]
                         )
-                        if obis_item.get("valuePosition") is None
+                        if item_value_position is None
                         else format_value(
                             matches[2][1],
-                            obis_item.get("type")[obis_item.get("valuePosition")],
+                            item_type[item_value_position],
                         )
                     )
                 )
@@ -106,21 +111,22 @@ async def send_telegram(telegram: list[bytes]):
         )
         logging.info("Telegram published on MQTT")
     except Exception as err:
-        logging.error(f"Unable to send data to InfluxDB: {err}")
+        logging.error(f"Unable to publish telgeram on MQTT: {err}")
 
 
 async def read_telegram():
+    reader: StreamReader
+    writer: StreamWriter
     reader, writer = await asyncio.open_connection(P1_ADDRESS, 23)
-    telegram = None
-    iteration_limit = 100
-    i = 0
+    telegram: Union[list, None] = None
+    iteration_limit: int = 100
+    i: int = 0
     while True:
         if i > iteration_limit:
             raise Exception(f"Exceeded iteration limit ({iteration_limit})")
         i = i + 1
-        data = await reader.readline()
+        data: bytes = await reader.readline()
         logging.debug(data)
-        # line = data.decode("utf-8")
         if data.startswith(b"/"):
             telegram = []
             logging.debug("New telegram")
@@ -128,7 +134,7 @@ async def read_telegram():
             telegram.append(data)
             if data.startswith(b"!"):
                 crc = hex(int(data[1:], 16))
-                calculated_crc = calc_crc(telegram)
+                calculated_crc: str = calc_crc(telegram)
                 if crc == calculated_crc:
                     logging.info(f"CRC verified ({crc})")
                     await send_telegram(telegram)
@@ -143,7 +149,7 @@ async def read_p1():
     while True:
         try:
             await asyncio.gather(
-                asyncio.sleep(30), asyncio.wait_for(read_telegram(), timeout=5)
+                asyncio.sleep(5), asyncio.wait_for(read_telegram(), timeout=5)
             )
         except Exception as err:
             logging.error(f"Unable to read data from {P1_ADDRESS}: {err}")
