@@ -10,7 +10,7 @@ import logging
 
 load_dotenv()
 logging.basicConfig(
-    format="%(asctime)s: [%(levelname)s] %(message)s",
+    format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%dT%H:%M:%S%z",
     level=logging.DEBUG if os.getenv("LOG_LEVEL") == "DEBUG" else logging.INFO,
 )
@@ -110,42 +110,43 @@ async def send_telegram(telegram: list[bytes]):
 
 
 async def read_telegram():
-    try:
-        reader, writer = await asyncio.open_connection(P1_ADDRESS, 23)
-        telegram = None
-        iteration_limit = 100
-        i = 0
-        while True:
-            if i > iteration_limit:
-                raise Exception(f"Exceeded iteration limit ({iteration_limit})")
-            i = i + 1
-            data = await reader.readline()
-            logging.debug(data)
-            line = data.decode("utf-8")
-            if line.startswith("/"):
-                telegram = []
-                logging.debug("New telegram")
-            if telegram is not None:
-                telegram.append(data)
-                if line.startswith("!"):
-                    crc = hex(int(line[1:], 16))
-                    calculated_crc = calc_crc(telegram)
-                    if crc == calculated_crc:
-                        logging.info(f"CRC verified ({crc})")
-                        await send_telegram(telegram)
-                    else:
-                        logging.debug("CRC check failed")
-                    writer.close()
-                    await writer.wait_closed()
-                    break
-    except Exception as err:
-        logging.error(f"Unable to read data from {P1_ADDRESS}: {err}")
+    reader, writer = await asyncio.open_connection(P1_ADDRESS, 23)
+    telegram = None
+    iteration_limit = 100
+    i = 0
+    while True:
+        if i > iteration_limit:
+            raise Exception(f"Exceeded iteration limit ({iteration_limit})")
+        i = i + 1
+        data = await reader.readline()
+        logging.debug(data)
+        line = data.decode("utf-8")
+        if line.startswith("/"):
+            telegram = []
+            logging.debug("New telegram")
+        if telegram is not None:
+            telegram.append(data)
+            if line.startswith("!"):
+                crc = hex(int(line[1:], 16))
+                calculated_crc = calc_crc(telegram)
+                if crc == calculated_crc:
+                    logging.info(f"CRC verified ({crc})")
+                    await send_telegram(telegram)
+                else:
+                    logging.debug("CRC check failed")
+                writer.close()
+                await writer.wait_closed()
+                break
 
 
 async def read_p1():
     while True:
-        await read_telegram()
-        await asyncio.sleep(30)
+        try:
+            await asyncio.gather(
+                asyncio.sleep(30), asyncio.wait_for(read_telegram(), timeout=5)
+            )
+        except Exception as err:
+            logging.error(f"Unable to read data from {P1_ADDRESS}: {err}")
 
 
 asyncio.run(read_p1())
