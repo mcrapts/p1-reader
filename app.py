@@ -155,8 +155,7 @@ async def read_p1():
     while True:
         await asyncio.gather(
             asyncio.sleep(int(os.getenv("INTERVAL", 5))),
-            timeout(read_telegram, timeout=5),
-            return_exceptions=True,
+            timeout(read_telegram, timeout=5)
         )
 
 
