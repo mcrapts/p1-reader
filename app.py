@@ -151,6 +151,7 @@ async def read_p1():
             await asyncio.gather(
                 asyncio.sleep(int(os.getenv("INTERVAL", 5))),
                 asyncio.wait_for(read_telegram(), timeout=5),
+                return_exceptions=True
             )
         except Exception as err:
             logging.error(f"Unable to read data from {P1_ADDRESS}: {err}")
