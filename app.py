@@ -7,7 +7,7 @@ import re
 from datetime import datetime
 import paho.mqtt.client as mqtt
 import logging
-from typing import Union
+from typing import Awaitable, Callable, Union
 
 
 load_dotenv()
@@ -146,7 +146,7 @@ async def read_telegram():
 
 
 async def read_p1():
-    async def timeout(awaitable, timeout):
+    async def timeout(awaitable: Callable, timeout: int) -> Union[Awaitable, None]:
         try:
             return await asyncio.wait_for(awaitable(), timeout=timeout)
         except Exception as err:
