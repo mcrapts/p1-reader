@@ -5,7 +5,8 @@ import os
 import json
 import re
 from datetime import datetime
-import paho.mqtt.publish as publish
+import paho.mqtt.client as mqtt
+# import paho.mqtt.publish as publish
 import logging
 from typing import Awaitable, Callable, Union
 
@@ -22,6 +23,8 @@ P1_ADDRESS: str = os.getenv("P1_ADDRESS", "")
 obis: list = json.load(open(os.path.join(os.path.dirname(__file__), "obis.json")))[
     "obis_fields"
 ]
+mqtt_client = mqtt.Client()
+mqtt_client.connect(os.getenv("MQTT_BROKER"), 1883, 60)
 
 
 def calc_crc(telegram: list[bytes]) -> str:
@@ -104,18 +107,22 @@ async def send_telegram(telegram: list[bytes]) -> None:
                     )
                 )
     try:
-        # mqtt_client.publish(
-        #     os.getenv("MQTT_TOPIC"), payload=json.dumps(telegram_formatted), retain=True
-        # )
-        publish.single(
-            topic=os.getenv("MQTT_TOPIC"),
-            payload=json.dumps(telegram_formatted),
-            retain=True,
-            hostname=os.getenv("MQTT_BROKER"),
-            port=1883,
-            keepalive=60,
+        result = mqtt_client.publish(
+            os.getenv("MQTT_TOPIC"), payload=json.dumps(telegram_formatted), retain=True
         )
-        logging.info("Telegram published on MQTT")
+        # publish.single(
+        #     topic=os.getenv("MQTT_TOPIC"),
+        #     payload=json.dumps(telegram_formatted),
+        #     retain=True,
+        #     hostname=os.getenv("MQTT_BROKER"),
+        #     port=1883,
+        #     keepalive=60,
+        # )
+        print(result.is_published(), result.rc == mqtt.MQTT_ERR_SUCCESS)
+        if result.is_published():
+            logging.info("Telegram published on MQTT")
+        else:
+            raise Exception("Telegram not published (return code {result.rc})")
     except Exception as err:
         logging.error(f"Unable to publish telgeram on MQTT: {err}")
 
