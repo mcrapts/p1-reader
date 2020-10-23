@@ -118,7 +118,6 @@ async def send_telegram(telegram: list[bytes]) -> None:
         #     port=1883,
         #     keepalive=60,
         # )
-        print(result.is_published(), result.rc == mqtt.MQTT_ERR_SUCCESS)
         if result.is_published():
             logging.info("Telegram published on MQTT")
         else:
