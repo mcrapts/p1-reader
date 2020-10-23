@@ -6,7 +6,6 @@ import json
 import re
 from datetime import datetime
 import paho.mqtt.client as mqtt
-# import paho.mqtt.publish as publish
 import logging
 from typing import Awaitable, Callable, Union
 
@@ -25,6 +24,7 @@ obis: list = json.load(open(os.path.join(os.path.dirname(__file__), "obis.json")
 ]
 mqtt_client = mqtt.Client()
 mqtt_client.connect(os.getenv("MQTT_BROKER"), 1883, 60)
+mqtt_client.loop_start()
 
 
 def calc_crc(telegram: list[bytes]) -> str:
@@ -110,20 +110,12 @@ async def send_telegram(telegram: list[bytes]) -> None:
         result = mqtt_client.publish(
             os.getenv("MQTT_TOPIC"), payload=json.dumps(telegram_formatted), retain=True
         )
-        # publish.single(
-        #     topic=os.getenv("MQTT_TOPIC"),
-        #     payload=json.dumps(telegram_formatted),
-        #     retain=True,
-        #     hostname=os.getenv("MQTT_BROKER"),
-        #     port=1883,
-        #     keepalive=60,
-        # )
-        if result.is_published():
+        if result.rc == 0:
             logging.info("Telegram published on MQTT")
         else:
-            raise Exception("Telegram not published (return code {result.rc})")
+            logging.error(f"Telegram not published (return code {result.rc})")
     except Exception as err:
-        logging.error(f"Unable to publish telgeram on MQTT: {err}")
+        logging.error(f"Unable to publish telegram on MQTT: {err}")
 
 
 async def read_telegram():
