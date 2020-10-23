@@ -5,7 +5,7 @@ import os
 import json
 import re
 from datetime import datetime
-import paho.mqtt.client as mqtt
+import paho.mqtt.publish as publish
 import logging
 from typing import Awaitable, Callable, Union
 
@@ -22,8 +22,6 @@ P1_ADDRESS: str = os.getenv("P1_ADDRESS", "")
 obis: list = json.load(open(os.path.join(os.path.dirname(__file__), "obis.json")))[
     "obis_fields"
 ]
-mqtt_client = mqtt.Client()
-mqtt_client.connect(os.getenv("MQTT_BROKER"), 1883, 60)
 
 
 def calc_crc(telegram: list[bytes]) -> str:
@@ -106,8 +104,16 @@ async def send_telegram(telegram: list[bytes]) -> None:
                     )
                 )
     try:
-        mqtt_client.publish(
-            os.getenv("MQTT_TOPIC"), payload=json.dumps(telegram_formatted), retain=True
+        # mqtt_client.publish(
+        #     os.getenv("MQTT_TOPIC"), payload=json.dumps(telegram_formatted), retain=True
+        # )
+        publish.single(
+            topic=os.getenv("MQTT_TOPIC"),
+            payload=json.dumps(telegram_formatted),
+            retain=True,
+            hostname=os.getenv("MQTT_BROKER"),
+            port=1883,
+            keepalive=60,
         )
         logging.info("Telegram published on MQTT")
     except Exception as err:
@@ -155,7 +161,7 @@ async def read_p1():
     while True:
         await asyncio.gather(
             asyncio.sleep(int(os.getenv("INTERVAL", 5))),
-            timeout(read_telegram, timeout=5)
+            timeout(read_telegram, timeout=5),
         )
 
 
