@@ -149,11 +149,13 @@ async def read_telegram():
 
 
 async def read_p1():
-    async def timeout(awaitable: Callable, timeout: int) -> Union[Awaitable, None]:
+    async def timeout(awaitable: Callable, timeout: float) -> Union[Awaitable, None]:
         try:
             return await asyncio.wait_for(awaitable(), timeout=timeout)
         except Exception as err:
-            logging.error(f"Unable to read data from {P1_ADDRESS}: {err}")
+            logging.error(
+                f"Unable to read data from {P1_ADDRESS}: {str(err) or err.__class__.__name__}"
+            )
 
     while True:
         logging.info("Read P1 reader")
