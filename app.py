@@ -139,14 +139,13 @@ async def read_telegram():
             if data.startswith(b"!"):
                 crc: str = hex(int(data[1:], 16))
                 calculated_crc: str = calc_crc(telegram)
+                writer.close()
                 if crc == calculated_crc:
                     logging.info(f"CRC verified ({crc})")
                     await send_telegram(telegram)
+                    break
                 else:
                     raise Exception("CRC check failed")
-                writer.close()
-                await writer.wait_closed()
-                break
 
 
 async def read_p1():
