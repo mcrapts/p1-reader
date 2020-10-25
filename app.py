@@ -143,7 +143,7 @@ async def read_telegram():
                     logging.info(f"CRC verified ({crc})")
                     await send_telegram(telegram)
                 else:
-                    logging.debug("CRC check failed")
+                    raise Exception("CRC check failed")
                 writer.close()
                 await writer.wait_closed()
                 break
@@ -157,6 +157,7 @@ async def read_p1():
             logging.error(f"Unable to read data from {P1_ADDRESS}: {err}")
 
     while True:
+        logging.info("Read P1 reader")
         await asyncio.gather(
             asyncio.sleep(int(os.getenv("INTERVAL", 5))),
             timeout(read_telegram, timeout=5),
