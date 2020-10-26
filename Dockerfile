@@ -1,4 +1,4 @@
-FROM python:3.9
+FROM python:3.9-slim
 
 RUN pip install poetry
 COPY poetry.lock pyproject.toml ./
@@ -7,5 +7,3 @@ RUN poetry config virtualenvs.create false --local && \
 
 COPY *.py *.json ./
 CMD ["python", "-u", "app.py"]
-
-
