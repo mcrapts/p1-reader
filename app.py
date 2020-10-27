@@ -123,29 +123,34 @@ async def read_telegram():
     writer: StreamWriter
     reader, writer = await asyncio.open_connection(P1_ADDRESS, 23)
     telegram: Union[list, None] = None
-    iteration_limit: int = 100
+    iteration_limit: int = 10
     i: int = 0
-    while True:
-        if i > iteration_limit:
-            raise Exception(f"Exceeded iteration limit ({iteration_limit})")
-        i = i + 1
-        data: bytes = await reader.readline()
-        logging.debug(data)
-        if data.startswith(b"/"):
-            telegram = []
-            logging.debug("New telegram")
-        if telegram is not None:
-            telegram.append(data)
-            if data.startswith(b"!"):
-                crc: str = hex(int(data[1:], 16))
-                calculated_crc: str = calc_crc(telegram)
+    try:
+        while True:
+            if i > iteration_limit:
                 writer.close()
-                if crc == calculated_crc:
-                    logging.info(f"CRC verified ({crc})")
-                    await send_telegram(telegram)
-                    break
-                else:
-                    raise Exception("CRC check failed")
+                raise Exception(f"Exceeded iteration limit ({iteration_limit} iterations)")
+            data: bytes = await reader.readline()
+            logging.debug(data)
+            if data.startswith(b"/"):
+                telegram = []
+                i = i + 1
+                logging.debug("New telegram")
+            if telegram is not None:
+                telegram.append(data)
+                if data.startswith(b"!"):
+                    crc: str = hex(int(data[1:], 16))
+                    calculated_crc: str = calc_crc(telegram)
+                    if crc == calculated_crc:
+                        logging.info(f"CRC verified ({crc}) after {i} iterations")
+                        writer.close()
+                        await send_telegram(telegram)
+                        break
+                    else:
+                        logging.info("CRC check failed")
+    except Exception:
+        writer.close()
+        raise
 
 
 async def read_p1():
