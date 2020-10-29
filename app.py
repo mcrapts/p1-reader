@@ -128,7 +128,6 @@ async def read_telegram():
     try:
         while True:
             if i > iteration_limit:
-                writer.close()
                 raise Exception(f"Exceeded iteration limit: {iteration_limit} iteration(s)")
             data: bytes = await reader.readline()
             logging.debug(data)
@@ -143,14 +142,12 @@ async def read_telegram():
                     calculated_crc: str = calc_crc(telegram)
                     if crc == calculated_crc:
                         logging.info(f"CRC verified ({crc}) after {i} iteration(s)")
-                        writer.close()
                         await send_telegram(telegram)
                         break
                     else:
                         logging.debug("CRC check failed")
-    except Exception:
+    finally:
         writer.close()
-        raise
 
 
 async def read_p1():
