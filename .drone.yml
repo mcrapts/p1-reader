@@ -1,0 +1,17 @@
+kind: pipeline
+type: ssh
+name: default
+
+server:
+  host: nuc.home
+  user:
+    from_secret: ssh_username
+  password:
+    from_secret: ssh_password
+
+steps:
+- name: build
+  commands:
+  - cd /home/marco/containers
+  - docker-compose build p1-reader
+  - docker-compose up -d p1-reader
