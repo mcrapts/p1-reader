@@ -118,34 +118,40 @@ async def send_telegram(telegram: list[bytes]) -> None:
         logging.error(f"Unable to publish telegram on MQTT: {err}")
 
 
+async def process_lines(reader):
+    telegram: Union[list, None] = None
+    iteration_limit: int = 10
+    i: int = 0
+    while True:
+        if i > iteration_limit:
+            raise Exception(f"Exceeded iteration limit: {iteration_limit} iteration(s)")
+        data: bytes = await reader.readline()
+        logging.debug(data)
+        if data.startswith(b"/"):
+            telegram = []
+            i = i + 1
+            logging.debug("New telegram")
+        if telegram is not None:
+            telegram.append(data)
+            if data.startswith(b"!"):
+                crc: str = hex(int(data[1:], 16))
+                calculated_crc: str = calc_crc(telegram)
+                if crc == calculated_crc:
+                    logging.info(f"CRC verified ({crc}) after {i} iteration(s)")
+                    await send_telegram(telegram)
+                    break
+                else:
+                    raise Exception("CRC check failed")
+
+
 async def read_telegram():
     reader: StreamReader
     writer: StreamWriter
     reader, writer = await asyncio.open_connection(P1_ADDRESS, 23)
-    telegram: Union[list, None] = None
-    iteration_limit: int = 10
-    i: int = 0
     try:
-        while True:
-            if i > iteration_limit:
-                raise Exception(f"Exceeded iteration limit: {iteration_limit} iteration(s)")
-            data: bytes = await reader.readline()
-            logging.debug(data)
-            if data.startswith(b"/"):
-                telegram = []
-                i = i + 1
-                logging.debug("New telegram")
-            if telegram is not None:
-                telegram.append(data)
-                if data.startswith(b"!"):
-                    crc: str = hex(int(data[1:], 16))
-                    calculated_crc: str = calc_crc(telegram)
-                    if crc == calculated_crc:
-                        logging.info(f"CRC verified ({crc}) after {i} iteration(s)")
-                        await send_telegram(telegram)
-                        break
-                    else:
-                        logging.debug("CRC check failed")
+        await process_lines(reader)
+    except Exception as err:
+        logging.debug(err)
     finally:
         writer.close()
 
@@ -166,5 +172,6 @@ async def read_p1():
             timeout(read_telegram, timeout=10),
         )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     asyncio.run(read_p1())
