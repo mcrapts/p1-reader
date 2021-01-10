@@ -166,5 +166,5 @@ async def read_p1():
             timeout(read_telegram, timeout=10),
         )
 
-
-asyncio.run(read_p1())
+if __name__ == '__main__':
+    asyncio.run(read_p1())
