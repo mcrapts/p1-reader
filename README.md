@@ -16,7 +16,7 @@ The script can be executed using Python and Docker.
 ### Start script using Docker
 1. Ensure you have Docker installed: https://docs.docker.com/get-docker/
 2. Build container using  `docker build -t p1-reader .`
-3. Start container using  `docker run --env-file ./.env --name -d p1-reader p1-reader`
+3. Start container using  `docker run --env-file ./.env --name p1-reader -d p1-reader`
 ---
 # Nederlands
 ## TL;DR
@@ -36,4 +36,4 @@ Het script kan zowel via Python als Docker uitgevoerd worden.
 ### Script starten midels Docker
 1. Zorg dat je Docker geinstalleerd hebt: https://docs.docker.com/get-docker/
 2. Build de container met `docker build -t p1-reader .`
-3. Start de container met `docker run --env-file ./.env --name -d p1-reader p1-reader`
+3. Start de container met `docker run --env-file ./.env --name p1-reader -d p1-reader`
