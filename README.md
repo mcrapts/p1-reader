@@ -9,9 +9,9 @@ The script can be executed using Python and Docker.
 
 ### Start script using Python
 1. Install `poetry`: https://python-poetry.org/docs/#installation
-2. Execute `poetry install` in the root of the project
-3. Execute `poetry install` to install dependencies
-4. Start the script using `poetry run python app.py`
+2. Execute `poetry install` in the root of the project to install dependencies
+3. Start the script using `poetry run python app.py`
+4. Optional: run tests using `poetry run pytest`
 
 ### Start script using Docker
 1. Ensure you have Docker installed: https://docs.docker.com/get-docker/
@@ -29,9 +29,9 @@ Het script kan zowel via Python als Docker uitgevoerd worden.
 
 ### Script starten middels Python
 1. Installeer `poetry`: https://python-poetry.org/docs/#installation
-2. Voer het commando `poetry install` uit in de root van dit project
-3. Voer `poetry install` uit om alle dependencies te installeren
-4. Start het script middels `poetry run python app.py`
+2. Voer het commando `poetry install` uit in de root van dit project om alle dependencies te installeren
+3. Start het script middels `poetry run python app.py`
+4. Optioneel: voer tests uit met `poetry run pytest`
 
 ### Script starten midels Docker
 1. Zorg dat je Docker geinstalleerd hebt: https://docs.docker.com/get-docker/
