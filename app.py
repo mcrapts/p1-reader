@@ -73,7 +73,7 @@ async def send_telegram(telegram: list[bytes]) -> None:
     telegram_formatted: dict = {}
     line: str
     for line in [line.decode() for line in telegram]:
-        matches: list[[]] = re.findall("(^.*?(?=\\())|((?<=\\().*?(?=\\)))", line)
+        matches: list[list] = re.findall("(^.*?(?=\\())|((?<=\\().*?(?=\\)))", line)
         if len(matches) > 0:
             obis_key: str = matches[0][0]
             obis_item: Union[dict, None] = next(
