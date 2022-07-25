@@ -7,7 +7,7 @@ import re
 from datetime import datetime
 import paho.mqtt.client as mqtt
 import logging
-from typing import Awaitable, Callable, Union
+from typing import Awaitable, Callable
 
 
 load_dotenv()
@@ -56,7 +56,7 @@ def parse_hex(str) -> str:
 
 
 async def send_telegram(telegram: list[bytes]) -> None:
-    def format_value(value: str, type: str) -> Union[str, float]:
+    def format_value(value: str, type: str) -> str | float:
         # Timestamp has message of format "YYMMDDhhmmssX"
         format_functions: dict = {
             "float": lambda str: float(str),
@@ -76,12 +76,12 @@ async def send_telegram(telegram: list[bytes]) -> None:
         matches: list[list] = re.findall("(^.*?(?=\\())|((?<=\\().*?(?=\\)))", line)
         if len(matches) > 0:
             obis_key: str = matches[0][0]
-            obis_item: Union[dict, None] = next(
+            obis_item: dict | None = next(
                 (item for item in obis if item.get("key", "") == obis_key), None
             )
             if obis_item is not None:
                 item_type: str = obis_item.get("type", "")
-                item_value_position: Union[int, None] = obis_item.get("valuePosition")
+                item_value_position: int | None = obis_item.get("valuePosition")
                 telegram_formatted[obis_item.get("name")] = (
                     format_value(matches[1][1], item_type)
                     if len(matches) == 2
@@ -119,7 +119,7 @@ async def send_telegram(telegram: list[bytes]) -> None:
 
 
 async def process_lines(reader):
-    telegram: Union[list, None] = None
+    telegram: list | None = None
     iteration_limit: int = 10
     i: int = 0
     while True:
@@ -157,7 +157,7 @@ async def read_telegram():
 
 
 async def read_p1():
-    async def timeout(awaitable: Callable, timeout: float) -> Union[Awaitable, None]:
+    async def timeout(awaitable: Callable, timeout: float) -> Awaitable | None:
         try:
             return await asyncio.wait_for(awaitable(), timeout=timeout)
         except Exception as err:
