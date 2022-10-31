@@ -1,6 +1,6 @@
-FROM python:3.10
+FROM python:3.11
 
-RUN pip install poetry==1.1.13
+RUN pip install poetry==1.2.2
 COPY poetry.lock pyproject.toml ./
 RUN poetry config virtualenvs.create false --local && \
     poetry install
