@@ -23,7 +23,7 @@ obis: list = json.load(open(os.path.join(os.path.dirname(__file__), "obis.json")
     "obis_fields"
 ]
 mqtt_client = mqtt.Client()
-mqtt_client.connect(os.getenv("MQTT_BROKER"), 1883, 60)
+mqtt_client.connect(os.getenv("MQTT_BROKER", ""), 1883, 60)
 mqtt_client.loop_start()
 
 
@@ -108,7 +108,9 @@ async def send_telegram(telegram: list[bytes]) -> None:
                 )
     try:
         result = mqtt_client.publish(
-            os.getenv("MQTT_TOPIC"), payload=json.dumps(telegram_formatted), retain=True
+            os.getenv("MQTT_TOPIC", ""),
+            payload=json.dumps(telegram_formatted),
+            retain=True,
         )
         if result.rc == 0:
             logging.info("Telegram published on MQTT")
