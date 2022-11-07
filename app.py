@@ -28,8 +28,24 @@ logging.basicConfig(
 )
 
 
-obis: list = json.load(open(os.path.join(os.path.dirname(__file__), "obis.json")))[
-    "obis_fields"
+class ObisField:
+    def __init__(self, key: str, name: str, type: list | str, value_position):
+        self.key = key
+        self.name = name
+        self.type: list[str] = [type] if isinstance(type, str) else type
+        self.value_position = value_position
+
+
+obis_fields: list[ObisField] = [
+    ObisField(
+        key=field.get("key", ""),
+        name=field.get("name", ""),
+        type=field.get("type", ""),
+        value_position=field.get("valuePosition"),
+    )
+    for field in json.load(open(os.path.join(os.path.dirname(__file__), "obis.json")))[
+        "obis_fields"
+    ]
 ]
 mqtt_client = mqtt.Client()
 mqtt_client.connect(Config.MQTT_BROKER, 1883, 60)
@@ -64,8 +80,8 @@ def parse_hex(str) -> str:
     return result
 
 
-async def send_telegram(telegram: list[bytes]) -> None:
-    def format_value(value: str, type: str) -> str | float:
+async def send_telegram(telegram: list[bytes]) -> dict | None:
+    def format_value(value: str, field_type: str) -> str | float:
         # Timestamp has message of format "YYMMDDhhmmssX"
         format_functions: dict = {
             "float": lambda str: float(str),
@@ -76,8 +92,8 @@ async def send_telegram(telegram: list[bytes]) -> None:
             "string": lambda str: parse_hex(str),
             "unknown": lambda str: str,
         }
-        return_value = format_functions[type](value.split("*")[0])
-        return return_value
+        result = format_functions[field_type](value.split("*")[0])
+        return result
 
     telegram_formatted: dict = {}
     line: str
@@ -85,36 +101,32 @@ async def send_telegram(telegram: list[bytes]) -> None:
         matches: list[list] = re.findall("(^.*?(?=\\())|((?<=\\().*?(?=\\)))", line)
         if len(matches) > 0:
             obis_key: str = matches[0][0]
-            obis_item: dict | None = next(
-                (item for item in obis if item.get("key", "") == obis_key), None
+            obis_field: ObisField | None = next(
+                (field for field in obis_fields if field.key == obis_key), None
             )
-            if obis_item is not None:
-                item_type: str = obis_item.get("type", "")
-                item_value_position: int | None = obis_item.get("valuePosition")
-                telegram_formatted[obis_item.get("name")] = (
-                    format_value(matches[1][1], item_type)
-                    if len(matches) == 2
-                    else (
-                        "|".join(
-                            [
-                                str(
-                                    format_value(
-                                        match[1],
-                                        item_type[index]
-                                        if type(item_type) == list
-                                        else item_type,
-                                    )
-                                )
-                                for index, match in enumerate(matches[1:])
-                            ]
+            if obis_field is not None:
+                telegram_formatted[obis_field.name] = (
+                    [
+                        format_value(
+                            match[1],
+                            obis_field.type[index]
+                            if len(obis_field.type) > 1
+                            else obis_field.type[0],
                         )
-                        if item_value_position is None
-                        else format_value(
+                        for index, match in enumerate(matches[1:])
+                    ]
+                    if obis_field.value_position is None
+                    else [
+                        format_value(
                             matches[2][1],
-                            item_type[item_value_position],
+                            obis_field.type[obis_field.value_position],
                         )
-                    )
+                    ]
                 )
+    telegram_formatted = {
+        key: "|".join(value) if isinstance(value, list) and len(value) > 1 else value[0]
+        for (key, value) in telegram_formatted.items()
+    }
     try:
         result = mqtt_client.publish(
             Config.MQTT_TOPIC,
@@ -125,6 +137,7 @@ async def send_telegram(telegram: list[bytes]) -> None:
             logging.info("Telegram published on MQTT")
         else:
             logging.error(f"Telegram not published (return code {result.rc})")
+        return telegram_formatted
     except Exception as err:
         logging.error(f"Unable to publish telegram on MQTT: {err}")
 
@@ -149,8 +162,8 @@ async def process_lines(reader):
                 calculated_crc: str = calc_crc(telegram)
                 if crc == calculated_crc:
                     logging.info(f"CRC verified ({crc}) after {i} iteration(s)")
-                    await send_telegram(telegram)
-                    break
+                    result = await send_telegram(telegram)
+                    return result
                 else:
                     raise Exception("CRC check failed")
 
