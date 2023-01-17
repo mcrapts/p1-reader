@@ -7,8 +7,8 @@ import re
 from datetime import datetime
 import paho.mqtt.client as mqtt
 import logging
-from typing import Awaitable, Callable
-
+from typing import Awaitable, Callable, Any
+from dataclasses import dataclass
 
 load_dotenv()
 
@@ -28,12 +28,15 @@ logging.basicConfig(
 )
 
 
+@dataclass
 class ObisField:
-    def __init__(self, key: str, name: str, type: list | str, value_position):
-        self.key = key
-        self.name = name
-        self.type: list[str] = [type] if isinstance(type, str) else type
-        self.value_position = value_position
+    key: str
+    name: str
+    type: list | str
+    value_position: Any
+
+    def __post_init__(self):
+        self.type = [self.type] if isinstance(self.type, str) else self.type
 
 
 obis_fields: list[ObisField] = [
