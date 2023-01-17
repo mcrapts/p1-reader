@@ -15,6 +15,9 @@ flake8 = "^4.0.1"
 pytest = "^7.1.2"
 pytest-asyncio = "^0.18.3"
 
+[tool.poetry.group.dev.dependencies]
+isort = "^5.11.4"
+
 [tool.black]
 line-length = 88
 target-version = ['py37']
@@ -48,3 +51,6 @@ minversion = "6.0"
 addopts = "-ra -v"
 log_level = "INFO"
 asyncio_mode = "strict"
+
+[tool.isort]
+profile = "black"
