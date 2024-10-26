@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Awaitable, Callable
 
-import paho.mqtt.client as mqtt
+import aiomqtt
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -51,9 +51,6 @@ obis_fields: list[ObisField] = [
         "obis_fields"
     ]
 ]
-mqtt_client = mqtt.Client()
-mqtt_client.connect(Config.MQTT_BROKER, 1883, 60)
-mqtt_client.loop_start()
 
 
 def calc_crc(telegram: list[bytes]) -> str:
@@ -84,7 +81,7 @@ def parse_hex(str) -> str:
     return result
 
 
-async def send_telegram(telegram: list[bytes]) -> dict | None:
+def convert_telegram_to_dict(telegram: list[bytes] | None):
     def format_value(value: str, field_type: str) -> str | float:
         # Timestamp has message of format "YYMMDDhhmmssX"
         format_functions: dict = {
@@ -101,6 +98,8 @@ async def send_telegram(telegram: list[bytes]) -> dict | None:
 
     telegram_formatted: dict = {}
     line: str
+
+    telegram = telegram if telegram else []
     for line in [line.decode() for line in telegram]:
         matches: list[list] = re.findall("(^.*?(?=\\())|((?<=\\().*?(?=\\)))", line)
         if len(matches) > 0:
@@ -113,9 +112,11 @@ async def send_telegram(telegram: list[bytes]) -> dict | None:
                     [
                         format_value(
                             match[1],
-                            obis_field.type[index]
-                            if len(obis_field.type) > 1
-                            else obis_field.type[0],
+                            (
+                                obis_field.type[index]
+                                if len(obis_field.type) > 1
+                                else obis_field.type[0]
+                            ),
                         )
                         for index, match in enumerate(matches[1:])
                     ]
@@ -131,53 +132,60 @@ async def send_telegram(telegram: list[bytes]) -> dict | None:
         key: "|".join(value) if isinstance(value, list) and len(value) > 1 else value[0]
         for (key, value) in telegram_formatted.items()
     }
+    return telegram_formatted
+
+
+async def publish_telegram(
+    telegram_formatted: dict, mqtt_client: aiomqtt.Client
+) -> dict | None:
     try:
-        result = mqtt_client.publish(
+        await mqtt_client.publish(
             Config.MQTT_TOPIC,
             payload=json.dumps(telegram_formatted),
             retain=True,
         )
-        if result.rc == 0:
-            logging.info("Telegram published on MQTT")
-        else:
-            logging.error(f"Telegram not published (return code {result.rc})")
-        return telegram_formatted
+        logging.info("Telegram published on MQTT")
     except Exception as err:
         logging.error(f"Unable to publish telegram on MQTT: {err}")
 
 
-async def process_lines(reader):
-    telegram: list | None = None
+async def process_lines(reader) -> list[bytes] | None:
+    telegram: list[bytes] | None = None
     iteration_limit: int = 10
     i: int = 0
+
     while True:
         if i > iteration_limit:
             raise Exception(f"Exceeded iteration limit: {iteration_limit} iteration(s)")
         data: bytes = await reader.readline()
         logging.debug(data)
+
         if data.startswith(b"/"):
             telegram = []
             i = i + 1
             logging.debug("New telegram")
-        if telegram is not None:
+        if telegram is not None and data is not None:
             telegram.append(data)
             if data.startswith(b"!"):
                 crc: str = hex(int(data[1:], 16))
                 calculated_crc: str = calc_crc(telegram)
                 if crc == calculated_crc:
                     logging.info(f"CRC verified ({crc}) after {i} iteration(s)")
-                    result = await send_telegram(telegram)
-                    return result
+                    return telegram
                 else:
                     raise Exception("CRC check failed")
 
 
-async def read_telegram():
+async def read_p1_and_publish_telegram():
     reader: StreamReader
     writer: StreamWriter
     reader, writer = await asyncio.open_connection(Config.P1_ADDRESS, 23)
+
     try:
-        await process_lines(reader)
+        telegram_bytes = await process_lines(reader)
+        telegram_dict = convert_telegram_to_dict(telegram_bytes)
+        async with aiomqtt.Client(Config.MQTT_BROKER, 1883) as mqtt_client:
+            await publish_telegram(telegram_dict, mqtt_client)
     except Exception as err:
         logging.debug(err)
     finally:
@@ -197,7 +205,7 @@ async def read_p1():
         logging.info("Read P1 reader")
         await asyncio.gather(
             asyncio.sleep(Config.INTERVAL),
-            timeout(read_telegram, timeout=10),
+            timeout(read_p1_and_publish_telegram, timeout=10),
         )
 
 

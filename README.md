@@ -8,10 +8,9 @@ The script can be executed using Python and Docker.
 > Before you start, rename `.env.example` to `.env` and make sure to fill in the variables.
 
 ### Start script using Python
-1. Install `poetry`: https://python-poetry.org/docs/#installation
-2. Execute `poetry install` in the root of the project to install dependencies
-3. Start the script using `poetry run python app.py`
-4. Optional: run tests using `poetry run pytest`
+1. Install `uv`: https://docs.astral.sh/uv/getting-started/installation/
+3. Start the script using `uv run python -m app`
+4. Optional: run tests using `uv run pytest`
 
 ### Start script using Docker
 1. Ensure you have Docker installed: https://docs.docker.com/get-docker/
@@ -28,10 +27,9 @@ Het script kan zowel via Python als Docker uitgevoerd worden.
 > Hernoem `.env.example` to `.env` en zorg dat alle variables ingevuld zijn.
 
 ### Script starten middels Python
-1. Installeer `poetry`: https://python-poetry.org/docs/#installation
-2. Voer het commando `poetry install` uit in de root van dit project om alle dependencies te installeren
-3. Start het script middels `poetry run python app.py`
-4. Optioneel: voer tests uit met `poetry run pytest`
+1. Installeer `uv`: https://docs.astral.sh/uv/getting-started/installation/
+3. Start het script middels `uv run python -m app`
+4. Optioneel: voer tests uit met `uv run pytest`
 
 ### Script starten midels Docker
 1. Zorg dat je Docker geinstalleerd hebt: https://docs.docker.com/get-docker/

@@ -1,6 +1,9 @@
+from unittest import mock
+
+import aiomqtt
 import pytest
 
-from app import calc_crc, process_lines
+from app import calc_crc, convert_telegram_to_dict, process_lines, publish_telegram
 
 
 def test_calc_crc():
@@ -22,6 +25,7 @@ async def read_lines(filename):
     with open(filename, "rb") as f:
         lines = f.readlines()
     reader = Reader(lines)
+
     return await process_lines(reader)
 
 
@@ -33,8 +37,94 @@ async def test_readlines_corrupt_p1():
 
 @pytest.mark.asyncio
 async def test_readlines_ok_p1():
-    result = await read_lines("./tests/lines_ok.txt")
-    expected_result = {
+    telegram_bytes = await read_lines("./tests/lines_ok.txt")
+    expected_telegram_bytes = telegram_bytes = [
+        b"/XMX5LGF0010453336756\r\n",
+        b"\r\n",
+        b"1-3:0.2.8(50)\r\n",
+        b"0-0:1.0.0(210110165213W)\r\n",
+        b"0-0:96.1.1(4530303132333435363738363735363139)\r\n",
+        b"1-0:1.8.1(001390.529*kWh)\r\n",
+        b"1-0:1.8.2(001083.563*kWh)\r\n",
+        b"1-0:2.8.1(000502.043*kWh)\r\n",
+        b"1-0:2.8.2(001072.631*kWh)\r\n",
+        b"0-0:96.14.0(0001)\r\n",
+        b"1-0:1.7.0(00.375*kW)\r\n",
+        b"1-0:2.7.0(00.000*kW)\r\n",
+        b"0-0:96.7.21(00015)\r\n",
+        b"0-0:96.7.9(00007)\r\n",
+        b"1-0:99.97.0(4)(0-0:96.7.19)(000101010000W)(0000000426*s)(000101010000W)(0000098573*s)(000101010000W)(0000000559*s)(200127202136W)(0000000328*s)\r\n",
+        b"1-0:32.32.0(00017)\r\n",
+        b"1-0:52.32.0(00016)\r\n",
+        b"1-0:72.32.0(00024)\r\n",
+        b"1-0:32.36.0(00000)\r\n",
+        b"1-0:52.36.0(00000)\r\n",
+        b"1-0:72.36.0(00000)\r\n",
+        b"0-0:96.13.0()\r\n",
+        b"1-0:32.7.0(230.3*V)\r\n",
+        b"1-0:52.7.0(228.0*V)\r\n",
+        b"1-0:72.7.0(229.7*V)\r\n",
+        b"1-0:31.7.0(000*A)\r\n",
+        b"1-0:51.7.0(000*A)\r\n",
+        b"1-0:71.7.0(001*A)\r\n",
+        b"1-0:21.7.0(00.100*kW)\r\n",
+        b"1-0:41.7.0(00.125*kW)\r\n",
+        b"1-0:61.7.0(00.149*kW)\r\n",
+        b"1-0:22.7.0(00.000*kW)\r\n",
+        b"1-0:42.7.0(00.000*kW)\r\n",
+        b"1-0:62.7.0(00.000*kW)\r\n",
+        b"0-1:24.1.0(003)\r\n",
+        b"0-1:96.1.0(4730303132333435363738313736323139)\r\n",
+        b"0-1:24.2.1(210110165007W)(01319.046*m3)\r\n",
+        b"!2E85\r\n",
+    ]
+    assert telegram_bytes == expected_telegram_bytes
+
+
+@pytest.mark.asyncio
+async def test_telegram_bytes_to_dict():
+    telegram_bytes = [
+        b"/XMX5LGF0010453336756\r\n",
+        b"\r\n",
+        b"1-3:0.2.8(50)\r\n",
+        b"0-0:1.0.0(210110165213W)\r\n",
+        b"0-0:96.1.1(4530303132333435363738363735363139)\r\n",
+        b"1-0:1.8.1(001390.529*kWh)\r\n",
+        b"1-0:1.8.2(001083.563*kWh)\r\n",
+        b"1-0:2.8.1(000502.043*kWh)\r\n",
+        b"1-0:2.8.2(001072.631*kWh)\r\n",
+        b"0-0:96.14.0(0001)\r\n",
+        b"1-0:1.7.0(00.375*kW)\r\n",
+        b"1-0:2.7.0(00.000*kW)\r\n",
+        b"0-0:96.7.21(00015)\r\n",
+        b"0-0:96.7.9(00007)\r\n",
+        b"1-0:99.97.0(4)(0-0:96.7.19)(000101010000W)(0000000426*s)(000101010000W)(0000098573*s)(000101010000W)(0000000559*s)(200127202136W)(0000000328*s)\r\n",
+        b"1-0:32.32.0(00017)\r\n",
+        b"1-0:52.32.0(00016)\r\n",
+        b"1-0:72.32.0(00024)\r\n",
+        b"1-0:32.36.0(00000)\r\n",
+        b"1-0:52.36.0(00000)\r\n",
+        b"1-0:72.36.0(00000)\r\n",
+        b"0-0:96.13.0()\r\n",
+        b"1-0:32.7.0(230.3*V)\r\n",
+        b"1-0:52.7.0(228.0*V)\r\n",
+        b"1-0:72.7.0(229.7*V)\r\n",
+        b"1-0:31.7.0(000*A)\r\n",
+        b"1-0:51.7.0(000*A)\r\n",
+        b"1-0:71.7.0(001*A)\r\n",
+        b"1-0:21.7.0(00.100*kW)\r\n",
+        b"1-0:41.7.0(00.125*kW)\r\n",
+        b"1-0:61.7.0(00.149*kW)\r\n",
+        b"1-0:22.7.0(00.000*kW)\r\n",
+        b"1-0:42.7.0(00.000*kW)\r\n",
+        b"1-0:62.7.0(00.000*kW)\r\n",
+        b"0-1:24.1.0(003)\r\n",
+        b"0-1:96.1.0(4730303132333435363738313736323139)\r\n",
+        b"0-1:24.2.1(210110165007W)(01319.046*m3)\r\n",
+        b"!2E85\r\n",
+    ]
+    telegram_dict = convert_telegram_to_dict(telegram_bytes)
+    expected_telegram_dict = {
         "versionInformation": 50,
         "timestamp": 1610293933,
         "equipmentIdentifier": "E0012345678675619",
@@ -71,4 +161,23 @@ async def test_readlines_ok_p1():
         "equipmentIdentifier1": "G0012345678176219",
         "deviceValue1": 1319.046,
     }
-    assert result == expected_result
+    assert telegram_dict == expected_telegram_dict
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("raise_exception", [True, False])
+async def test_publish_telegram(raise_exception):
+    MockMqttClient = mock.create_autospec(aiomqtt.Client, spec_set=True)
+    mock_mqtt_client = MockMqttClient("test_broker.home")
+    mock_mqtt_client.publish = mock.AsyncMock(
+        side_effect=Exception if raise_exception else None
+    )
+
+    mock_telegram_dict = {
+        "versionInformation": 50,
+        "timestamp": 1610293933,
+        "equipmentIdentifier": "E0012345678675619",
+    }
+
+    await publish_telegram(mock_telegram_dict, mock_mqtt_client)
+    mock_mqtt_client.publish.assert_called_once()

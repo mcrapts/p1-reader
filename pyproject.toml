@@ -1,56 +1,26 @@
-[tool.poetry]
+[project]
 name = "p1-reader"
 version = "0.1.0"
-description = ""
-authors = ["Marco <marco@crapts.org>"]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiomqtt>=2.3.0",
+    "python-dotenv>=1.0.1",
+]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-python-dotenv = "^0.20.0"
-paho-mqtt = "^1.5.1"
-
-[tool.poetry.dev-dependencies]
-black = "^22.3.0"
-flake8 = "^4.0.1"
-pytest = "^7.1.2"
-pytest-asyncio = "^0.18.3"
-
-[tool.poetry.group.dev.dependencies]
-isort = "^5.11.4"
-
-[tool.black]
-line-length = 88
-target-version = ['py37']
-include = '\.pyi?$'
-exclude = '''
-
-(
-  /(
-      \.eggs         # exclude a few common directories in the
-    | \.git          # root of the project
-    | \.hg
-    | \.mypy_cache
-    | \.tox
-    | \.venv
-    | _build
-    | buck-out
-    | build
-    | dist
-  )/
-  | foo.py           # also separately exclude a file named foo.py in
-                     # the root of the project
-)
-'''
-
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+[dependency-groups]
+dev = [
+    "pytest-asyncio>=0.24.0",
+    "pytest>=8.3.3",
+    "ruff>=0.7.1",
+]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra -v"
 log_level = "INFO"
 asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
 
-[tool.isort]
-profile = "black"
+[tool.ruff]
+line-length = 88
