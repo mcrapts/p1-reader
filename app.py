@@ -149,47 +149,48 @@ async def publish_telegram(
         logging.error(f"Unable to publish telegram on MQTT: {err}")
 
 
-async def process_lines(reader) -> list[bytes] | None:
+async def process_lines() -> list[bytes] | None:
+    reader: StreamReader
+    writer: StreamWriter
     telegram: list[bytes] | None = None
     iteration_limit: int = 10
     i: int = 0
 
-    while True:
-        if i > iteration_limit:
-            raise Exception(f"Exceeded iteration limit: {iteration_limit} iteration(s)")
-        data: bytes = await reader.readline()
-        logging.debug(data)
-
-        if data.startswith(b"/"):
-            telegram = []
-            i = i + 1
-            logging.debug("New telegram")
-        if telegram is not None and data is not None:
-            telegram.append(data)
-            if data.startswith(b"!"):
-                crc: str = hex(int(data[1:], 16))
-                calculated_crc: str = calc_crc(telegram)
-                if crc == calculated_crc:
-                    logging.info(f"CRC verified ({crc}) after {i} iteration(s)")
-                    return telegram
-                else:
-                    raise Exception("CRC check failed")
-
-
-async def read_p1_and_publish_telegram():
-    reader: StreamReader
-    writer: StreamWriter
     reader, writer = await asyncio.open_connection(Config.P1_ADDRESS, 23)
 
     try:
-        telegram_bytes = await process_lines(reader)
-        telegram_dict = convert_telegram_to_dict(telegram_bytes)
-        async with aiomqtt.Client(Config.MQTT_BROKER, 1883) as mqtt_client:
-            await publish_telegram(telegram_dict, mqtt_client)
-    except Exception as err:
-        logging.debug(err)
+        while True:
+            if i > iteration_limit:
+                raise Exception(
+                    f"Exceeded iteration limit: {iteration_limit} iteration(s)"
+                )
+            data: bytes = await reader.readline()
+            logging.debug(data)
+
+            if data.startswith(b"/"):
+                telegram = []
+                i = i + 1
+                logging.debug("New telegram")
+            if telegram is not None and data is not None:
+                telegram.append(data)
+                if data.startswith(b"!"):
+                    crc: str = hex(int(data[1:], 16))
+                    calculated_crc: str = calc_crc(telegram)
+                    if crc == calculated_crc:
+                        logging.info(f"CRC verified ({crc}) after {i} iteration(s)")
+                        return telegram
+                    else:
+                        raise Exception("CRC check failed")
     finally:
         writer.close()
+        await writer.wait_closed()
+
+
+async def read_p1_and_publish_telegram():
+    telegram_bytes = await process_lines()
+    telegram_dict = convert_telegram_to_dict(telegram_bytes)
+    async with aiomqtt.Client(Config.MQTT_BROKER, 1883) as mqtt_client:
+        await publish_telegram(telegram_dict, mqtt_client)
 
 
 async def read_p1():

@@ -21,23 +21,48 @@ class Reader:
         return next(self.lines)
 
 
-async def read_lines(filename):
+@pytest.fixture
+def mock_open_connection(request):
+    filename = request.param
     with open(filename, "rb") as f:
         lines = f.readlines()
     reader = Reader(lines)
+    writer = mock.Mock()
+    writer.close = mock.Mock()
+    writer.wait_closed = mock.AsyncMock()
 
-    return await process_lines(reader)
+    async def open_connection(host, port):
+        return (reader, writer)
+
+    return (open_connection, reader, writer)
 
 
 @pytest.mark.asyncio
-async def test_readlines_corrupt_p1():
+@pytest.mark.parametrize(
+    "mock_open_connection", ["./tests/lines_corrupt.txt"], indirect=True
+)
+async def test_readlines_corrupt_p1(monkeypatch, mock_open_connection):
+    open_connection, reader, writer = mock_open_connection
+    monkeypatch.setattr("asyncio.open_connection", open_connection)
     with pytest.raises(Exception, match="CRC check failed"):
-        await read_lines("./tests/lines_corrupt.txt")
+        await process_lines()
+
+    writer.close.assert_called_once()
+    writer.wait_closed.assert_awaited()
 
 
 @pytest.mark.asyncio
-async def test_readlines_ok_p1():
-    telegram_bytes = await read_lines("./tests/lines_ok.txt")
+@pytest.mark.parametrize(
+    "mock_open_connection", ["./tests/lines_ok.txt"], indirect=True
+)
+async def test_readlines_ok_p1(monkeypatch, mock_open_connection):
+    open_connection, reader, writer = mock_open_connection
+
+    monkeypatch.setattr("asyncio.open_connection", open_connection)
+    telegram_bytes = await process_lines()
+    writer.close.assert_called_once()
+    writer.wait_closed.assert_awaited()
+
     expected_telegram_bytes = telegram_bytes = [
         b"/XMX5LGF0010453336756\r\n",
         b"\r\n",
